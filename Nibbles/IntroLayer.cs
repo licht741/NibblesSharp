@@ -1,32 +1,23 @@
 using System;
 using System.Collections.Generic;
 using CocosSharp;
-using Microsoft.Xna.Framework;
 
 namespace Nibbles
 {
     public class IntroLayer : CCLayerColor
     {
-
-        float ResTruck(CCSprite sprite)
-        {
-            float scale = 0.0f;
-            float resWid = CCScene.DefaultDesignResolutionSize.Width;
-            float resHei = CCScene.DefaultDesignResolutionSize.Height;
-
-            return 2;
-        }
-
         private Field fields;
 
         public IntroLayer() : base(CCColor4B.Blue)
         {
-            fields = new Field(17, 10);
-            fields.Initialize();
-
             cntH = 17;
             cntW = 10;
-            Schedule(RunGameLogic, 1);
+
+            fields = new Field(cntH, cntW);
+            fields.Initialize();
+
+
+            Schedule(RunGameLogic, 0.5f);
 
             var touchListener = new CCEventListenerTouchAllAtOnce();
             touchListener.OnTouchesMoved = OnTouchesMoved;
@@ -77,26 +68,25 @@ namespace Nibbles
                 {
                     var picture = "grass";
 
-                    if (state[i][j].CellType == CellTypes.SnakeHead)
-                        picture = "snake_head";
-                    if (state[i][j].CellType == CellTypes.SnakeMiddle)
-                        picture = "snake_middle";
-                    if (state[i][j].CellType == CellTypes.SnakeTail)
-                        picture = "snake_tail";
                     if (state[i][j].CellType == CellTypes.Food)
                         picture = "food";
+                    if (state[i][j].CellType == CellTypes.SnakeTail)
+                        picture = "snake_tail";
+                    if (state[i][j].CellType == CellTypes.SnakeMiddle)
+                        picture = "snake_middle";
+                    if (state[i][j].CellType == CellTypes.SnakeHead)
+                        picture = "snake_head";
 
                     var paddlesprite = new CCSprite(picture);
+                    if (state[i][j].CellType == CellTypes.SnakeHead)
+                        paddlesprite.Rotation = 90;
                     paddlesprite.ScaleX = scaleX;
                     paddlesprite.ScaleY = scaleY;
                     paddlesprite.PositionX = maxW - sizeX / 2 - sizeX * i;
                     paddlesprite.PositionY = maxH - sizeY / 2 - sizeY * j;
                     AddChild(paddlesprite);
                 }
-
         }
-
-
 
         protected override void AddedToScene()
         {

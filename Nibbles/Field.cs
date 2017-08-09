@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Nibbles
 {
@@ -12,6 +13,30 @@ namespace Nibbles
         public int PositionX { get; set; }
         public int PositionY { get; set; }
         public MovingDirections MovingDirection { get; set; }
+
+        public void Move()
+        {
+            Move(MovingDirection);
+        }
+
+        public void Move(MovingDirections movDirection)
+        {
+            switch (movDirection)
+            {
+                case MovingDirections.Up:
+                    PositionY -= 1;
+                    break;
+                case MovingDirections.Right:
+                    PositionX -= 1;
+                    break;
+                case MovingDirections.Down:
+                    PositionY += 1;
+                    break;
+                case MovingDirections.Left:
+                    PositionX += 1;
+                    break;
+            }
+        }
     }
 
 
@@ -52,8 +77,6 @@ namespace Nibbles
                 MovingDirection = MovingDirections.Right
             };
         }
-
-
     }
 
     class Field
@@ -73,8 +96,8 @@ namespace Nibbles
 
             set
             {
-                if (Direction == MovingDirections.Up && value == MovingDirections.Down    ||
-                    Direction == MovingDirections.Down && value == MovingDirections.Up    ||
+                if (Direction == MovingDirections.Up && value == MovingDirections.Down ||
+                    Direction == MovingDirections.Down && value == MovingDirections.Up ||
                     Direction == MovingDirections.Left && value == MovingDirections.Right ||
                     Direction == MovingDirections.Right && value == MovingDirections.Left)
                         return;
@@ -110,49 +133,84 @@ namespace Nibbles
         public int Width  { get { return _width;  } }
         public int Height { get { return _height; } }
 
+        private bool PositionCollision(GameCell gc1, GameCell gc2)
+        {
+            return gc1.PositionX == gc2.PositionX &&
+                   gc1.PositionY == gc2.PositionY;
+        }
+
+        private bool CollisionWithFood() {
+            if (food == null)
+                return false;
+
+            return PositionCollision(snake.Head, food);
+        } 
+
+        private bool CollisionWithBody()
+        {
+            var collisionPlace = snake.Middle.FirstOrDefault(c => PositionCollision(c, snake.Head));
+            if (collisionPlace != default(GameCell))
+                return true;
+
+            return PositionCollision(snake.Head, snake.Tail);
+        }
+
         public void Step()
         {
+
+            if (snake == null)
+                return;
+
             var head = snake.Head;
             Cells[head.PositionX][head.PositionY].MovingDirection = head.MovingDirection;
 
-            switch (snake.MovingDirection)
+            var prevX = head.PositionX;
+            var prevY = head.PositionY;
+
+            // Detect collision
+            if (CollisionWithFood())
             {
-                case MovingDirections.Up:
-                    head.PositionY -= 1;
-                    break;
-                case MovingDirections.Right:
-                    head.PositionX -= 1;
-                    break;
-                case MovingDirections.Down:
-                    head.PositionY += 1;
-                    break;
-                case MovingDirections.Left:
-                    head.PositionX += 1;
-                    break;
+                head.Move(snake.MovingDirection);
+                food = GenerateFood(Width, Height);
+                snake.Middle.Add(new GameCell
+                {
+                    PositionX = prevX,
+                    PositionY = prevY,
+                    CellType = CellTypes.SnakeMiddle,
+                    MovingDirection = head.MovingDirection
+                });
+
+                return;
+            }
+
+            if (CollisionWithBody())
+            {
+                snake = null;
+                food = null;
+
+                return;
             }
 
             // tail
+            head.Move(snake.MovingDirection);
+
+            foreach (var cell in snake.Middle)
+            {
+                var movingDirectionMiddle = Cells[cell.PositionX][cell.PositionY].MovingDirection;
+                if (movingDirectionMiddle == MovingDirections.None)
+                    movingDirectionMiddle = Direction;
+                cell.Move(movingDirectionMiddle);
+            }
+
             var tail = snake.Tail;
             var movingDirection = Cells[tail.PositionX][tail.PositionY].MovingDirection;
             if (movingDirection == MovingDirections.None)
                 movingDirection = Direction;
-            var prevX = tail.PositionX;
-            var prevY = tail.PositionY;
-            switch (movingDirection)
-            {
-                case MovingDirections.Up:
-                    tail.PositionY -= 1;
-                    break;
-                case MovingDirections.Right:
-                    tail.PositionX -= 1;
-                    break;
-                case MovingDirections.Down:
-                    tail.PositionY += 1;
-                    break;
-                case MovingDirections.Left:
-                    tail.PositionX += 1;
-                    break;
-            }
+
+            prevX = tail.PositionX;
+            prevY = tail.PositionY;
+
+            tail.Move(movingDirection);
 
             Cells[prevX][prevY].CellType = CellTypes.Empty;
 
@@ -206,14 +264,18 @@ namespace Nibbles
         {
             var temp = new List<List<GameCell>>(Cells);
 
-            var head = snake.Head;
-            temp[head.PositionX][head.PositionY].CellType = CellTypes.SnakeHead;
-            snake.Middle.ForEach(cell => temp[cell.PositionX][cell.PositionY].CellType = CellTypes.SnakeMiddle);
+            if (snake != null)
+            {
+                var head = snake.Head;
+                temp[head.PositionX][head.PositionY].CellType = CellTypes.SnakeHead;
+                snake.Middle.ForEach(cell => temp[cell.PositionX][cell.PositionY].CellType = CellTypes.SnakeMiddle);
 
-            var tail = snake.Tail;
-            temp[tail.PositionX][tail.PositionY].CellType = CellTypes.SnakeTail;
+                var tail = snake.Tail;
+                temp[tail.PositionX][tail.PositionY].CellType = CellTypes.SnakeTail;
+            }
 
-            temp[food.PositionX][food.PositionY].CellType = CellTypes.Food;
+            if (food != null)
+                temp[food.PositionX][food.PositionY].CellType = CellTypes.Food;
 
             return temp;
         }
